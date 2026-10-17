@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f8fc">
-  <meta name="description" content="A responsive payroll calculator demo to estimate salary components, deductions, tax regimes, and annual take-home pay.">
+  <meta name="description" content="Calculate salary components, deductions, estimated income tax, net pay, annual projections, and printable salary slips.">
   <title>Paywise — Smart Payroll Calculator</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%234f46e5'/%3E%3Cpath d='M27 23h28a19 19 0 0 1 0 38H43v16H27zm16 14v10h12a5 5 0 0 0 0-10z' fill='white'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
@@ -34,7 +34,7 @@
       </div>
       <div class="profile-mini">
         <div class="avatar">PW</div>
-        <div><strong>Payroll workspace</strong><small>Demo account</small></div>
+        <div><strong>Payroll workspace</strong><small>Local calculator</small></div>
         <span class="online-dot" aria-label="Online"></span>
       </div>
     </aside>
@@ -44,8 +44,8 @@
         <div class="mobile-brand"><span class="brand-mark">P</span><strong>paywise</strong></div>
         <div class="breadcrumb">Workspace <span>/</span> <strong>Payroll overview</strong></div>
         <div class="topbar-actions">
-          <span class="demo-pill"><span></span> DEMO MODE</span>
-          <button class="button button-primary button-small" id="downloadSlipTop" type="button"><span aria-hidden="true">↓</span> Export slip</button>
+          <span class="workspace-pill"><span></span> LOCAL CALCULATOR</span>
+          <button class="button button-primary button-small" id="downloadSlipTop" type="button" disabled><span aria-hidden="true">↓</span> Export slip</button>
         </div>
       </header>
 
@@ -55,29 +55,29 @@
           <h1>Payroll overview</h1>
           <p class="intro-copy">A clearer view of earnings, deductions, and what lands in your account.</p>
         </div>
-        <button class="button button-secondary" id="loadDemo" type="button"><span aria-hidden="true">↻</span> Load sample employee</button>
+        
       </section>
 
       <section class="metric-grid" aria-label="Salary summary">
         <article class="metric-card net-card">
           <div class="metric-heading"><span>Estimated take-home</span><span class="metric-icon pale-icon">↗</span></div>
-          <div class="metric-value" id="netMetric">₹87,880</div>
-          <div class="metric-foot"><span class="status-dot"></span><span id="chosenRegimeLabel">New tax regime selected</span></div>
+          <div class="metric-value" id="netMetric">—</div>
+          <div class="metric-foot"><span class="status-dot"></span><span id="chosenRegimeLabel">Complete the form to calculate</span></div>
           <div class="net-card-orb orb-one"></div><div class="net-card-orb orb-two"></div>
         </article>
         <article class="metric-card">
           <div class="metric-heading"><span>Monthly gross</span><span class="metric-icon icon-purple">₹</span></div>
-          <div class="metric-value" id="grossMetric">₹96,000</div>
+          <div class="metric-value" id="grossMetric">—</div>
           <div class="metric-foot muted-foot"><span class="foot-arrow">↗</span> Before deductions</div>
         </article>
         <article class="metric-card">
           <div class="metric-heading"><span>Total deductions</span><span class="metric-icon icon-orange">−</span></div>
-          <div class="metric-value" id="deductionMetric">₹8,120</div>
+          <div class="metric-value" id="deductionMetric">—</div>
           <div class="metric-foot muted-foot"><span class="foot-arrow orange-arrow">↘</span> PF, PT and TDS</div>
         </article>
         <article class="metric-card">
           <div class="metric-heading"><span>Annual net projection</span><span class="metric-icon icon-blue">▤</span></div>
-          <div class="metric-value" id="annualNetMetric">₹10,54,560</div>
+          <div class="metric-value" id="annualNetMetric">—</div>
           <div class="metric-foot muted-foot">Same salary for 12 months</div>
         </article>
       </section>
@@ -90,16 +90,19 @@
           </div>
           <form id="payrollForm">
             <div class="form-grid">
-              <label class="field"><span>Employee name</span><input id="employeeName" name="employeeName" value="Asha Verma" autocomplete="name" required maxlength="80"></label>
-              <label class="field"><span>Employee ID</span><input id="employeeId" name="employeeId" value="E101" required maxlength="30"></label>
-              <label class="field"><span>Department</span><select id="department" name="department"><option>Engineering</option><option>Finance</option><option>Human Resources</option><option>Marketing</option><option>Operations</option><option>Sales</option><option>Other</option></select></label>
-              <label class="field"><span>Salary month</span><input id="salaryMonth" name="salaryMonth" type="month" required value="2026-10"></label>
-              <label class="field field-full"><span>Monthly basic salary <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="basicSalary" name="basicSalary" type="number" min="0" max="100000000" step="100" value="60000" required inputmode="decimal"></div></label>
-              <label class="field"><span>City type for HRA</span><select id="cityType" name="cityType"><option value="metro">Metro (50% HRA)</option><option value="nonmetro">Non-metro (40% HRA)</option></select></label>
-              <label class="field"><span>Monthly rent paid <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="monthlyRent" name="monthlyRent" type="number" min="0" max="100000000" step="500" value="25000" required inputmode="decimal"></div></label>
-              <label class="field field-full"><span>Other 80C investments / year <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="other80C" name="other80C" type="number" min="0" max="100000000" step="1000" value="40000" required inputmode="decimal"></div><small class="field-hint">For the old-regime estimate. Eligible deductions are capped at ₹1,50,000 in this demo.</small></label>
+              <label class="field"><span>Employee name</span><input id="employeeName" name="employeeName" placeholder="Enter employee name" autocomplete="name" required maxlength="80"></label>
+              <label class="field"><span>Employee ID</span><input id="employeeId" name="employeeId" placeholder="Enter employee ID" required maxlength="30"></label>
+              <label class="field"><span>Department</span><select id="department" name="department" required><option value="" selected disabled>Select department</option><option>Engineering</option><option>Finance</option><option>Human Resources</option><option>Marketing</option><option>Operations</option><option>Sales</option><option>Other</option></select></label>
+              <label class="field"><span>Salary month</span><input id="salaryMonth" name="salaryMonth" type="month" required></label>
+              <label class="field field-full"><span>Monthly basic salary <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="basicSalary" name="basicSalary" type="number" min="0" max="100000000" step="0.01" placeholder="0.00" required inputmode="decimal"></div></label>
+              <label class="field"><span>City type for HRA</span><select id="cityType" name="cityType" required><option value="" selected disabled>Select city type</option><option value="metro">Metro (50% HRA model)</option><option value="nonmetro">Non-metro (40% HRA model)</option></select></label>
+              <label class="field"><span>Monthly rent paid <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="monthlyRent" name="monthlyRent" type="number" min="0" max="100000000" step="0.01" value="0" required inputmode="decimal"></div></label>
+              <label class="field"><span>Section 87A rebate eligibility</span><select id="rebateEligibility" name="rebateEligibility" required><option value="" selected disabled>Select eligibility</option><option value="eligible">Eligible resident individual</option><option value="ineligible">Not eligible / unsure</option></select><small class="field-hint">Choose only if you know the employee qualifies for the rebate.</small></label>
+              <label class="field"><span>Professional tax calculation</span><select id="professionalTaxMode" name="professionalTaxMode" required><option value="" selected disabled>Select method</option><option value="andhra-pradesh">Andhra Pradesh schedule</option><option value="manual">Enter monthly amount</option><option value="none">No professional tax applies</option></select><small class="field-hint">For another state, enter the applicable amount confirmed from its current rules.</small></label>
+              <label class="field field-full hidden" id="manualPtField"><span>Monthly professional tax <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="manualPt" name="manualPt" type="number" min="0" max="100000" step="0.01" value="0" inputmode="decimal"></div><small class="field-hint">Enter the applicable amount confirmed for the employee's state and pay period.</small></label>
+              <label class="field field-full"><span>Other 80C investments / year <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="other80C" name="other80C" type="number" min="0" max="100000000" step="0.01" value="0" required inputmode="decimal"></div><small class="field-hint">Used only for the old-regime estimate. PF and other modeled 80C amounts share a ₹1,50,000 cap.</small></label>
             </div>
-            <div class="form-actions"><button class="button button-primary" type="submit">Calculate payroll <span aria-hidden="true">→</span></button><span class="live-status"><span></span> Live calculation</span></div>
+            <div class="form-actions"><button class="button button-primary" type="submit">Calculate payroll <span aria-hidden="true">→</span></button><button class="button button-secondary" id="clearForm" type="button">Clear form</button><span class="live-status"><span></span> Updates as you edit</span></div>
             <p class="form-error" id="formError" role="alert" hidden></p>
           </form>
         </article>
@@ -109,22 +112,22 @@
             <div><p class="section-kicker">PAY BREAKDOWN</p><h2>Monthly salary</h2><p class="panel-subtitle">How earnings become take-home pay.</p></div>
             <span class="round-icon chart-icon">◔</span>
           </div>
-          <div class="breakdown-total"><span>Gross monthly salary</span><strong id="grossBreakdown">₹96,000</strong></div>
-          <div class="stacked-bar" id="stackedBar" role="img" aria-label="Breakdown of net salary and deductions"><span class="bar-net"></span><span class="bar-pf"></span><span class="bar-pt"></span><span class="bar-tax"></span></div>
+          <div class="breakdown-total"><span>Gross monthly salary</span><strong id="grossBreakdown">—</strong></div>
+          <div class="stacked-bar" id="stackedBar" role="img" aria-label="Calculate payroll to view take-home and deductions"><span class="bar-net"></span><span class="bar-pf"></span><span class="bar-pt"></span><span class="bar-tax"></span></div>
           <div class="legend-grid">
-            <div class="legend-item"><span class="legend-dot dot-net"></span><span>Take-home</span><strong id="legendNet">₹87,880</strong></div>
-            <div class="legend-item"><span class="legend-dot dot-pf"></span><span>PF</span><strong id="legendPf">₹7,920</strong></div>
-            <div class="legend-item"><span class="legend-dot dot-pt"></span><span>Professional tax</span><strong id="legendPt">₹200</strong></div>
-            <div class="legend-item"><span class="legend-dot dot-tax"></span><span>Income tax (TDS)</span><strong id="legendTds">₹0</strong></div>
+            <div class="legend-item"><span class="legend-dot dot-net"></span><span>Take-home</span><strong id="legendNet">—</strong></div>
+            <div class="legend-item"><span class="legend-dot dot-pf"></span><span>PF</span><strong id="legendPf">—</strong></div>
+            <div class="legend-item"><span class="legend-dot dot-pt"></span><span>Professional tax</span><strong id="legendPt">—</strong></div>
+            <div class="legend-item"><span class="legend-dot dot-tax"></span><span>Income tax (TDS)</span><strong id="legendTds">—</strong></div>
           </div>
           <div class="divider"></div>
           <div class="component-list">
-            <div class="component-row"><span>Basic salary</span><strong id="basicBreakdown">₹60,000</strong></div>
-            <div class="component-row"><span>Dearness allowance (10%)</span><strong id="daBreakdown">₹6,000</strong></div>
-            <div class="component-row"><span>House rent allowance</span><strong id="hraBreakdown">₹30,000</strong></div>
-            <div class="component-row component-total"><span>Gross salary</span><strong id="grossTotalBreakdown">₹96,000</strong></div>
+            <div class="component-row"><span>Basic salary</span><strong id="basicBreakdown">—</strong></div>
+            <div class="component-row"><span>Dearness allowance (10%)</span><strong id="daBreakdown">—</strong></div>
+            <div class="component-row"><span>House rent allowance</span><strong id="hraBreakdown">—</strong></div>
+            <div class="component-row component-total"><span>Gross salary</span><strong id="grossTotalBreakdown">—</strong></div>
           </div>
-          <div class="insight-note"><span class="insight-star">✦</span><p id="insightText">Your estimated take-home is 91.5% of monthly gross salary.</p></div>
+          <div class="insight-note"><span class="insight-star">✦</span><p id="insightText">Enter employee details and calculate payroll to see the breakdown.</p></div>
         </article>
       </section>
 
@@ -136,21 +139,21 @@
         <div class="tax-cards" id="taxCards">
           <article class="tax-card recommended" id="newTaxCard">
             <div class="tax-card-top"><div class="regime-symbol new-symbol">N</div><div><h3>New tax regime</h3><p>Lower rates, fewer deductions</p></div><span class="recommended-badge" id="newBadge">BEST FIT</span></div>
-            <div class="tax-amount" id="newTaxAmount">₹0 <small>/ year</small></div>
-            <div class="tax-meta"><span>Taxable income</span><strong id="newTaxable">₹10,77,000</strong></div>
-            <div class="tax-meta"><span>Monthly TDS estimate</span><strong id="newTds">₹0</strong></div>
+            <div class="tax-amount" id="newTaxAmount">—</div>
+            <div class="tax-meta"><span>Taxable income</span><strong id="newTaxable">—</strong></div>
+            <div class="tax-meta"><span>Monthly TDS estimate</span><strong id="newTds">—</strong></div>
             <div class="tax-card-footer" id="newFooter">Selected for lower modeled tax</div>
           </article>
           <article class="tax-card" id="oldTaxCard">
             <div class="tax-card-top"><div class="regime-symbol old-symbol">O</div><div><h3>Old tax regime</h3><p>Eligible exemptions and deductions</p></div><span class="recommended-badge hidden" id="oldBadge">BEST FIT</span></div>
-            <div class="tax-amount" id="oldTaxAmount">₹0 <small>/ year</small></div>
-            <div class="tax-meta"><span>Taxable income</span><strong id="oldTaxable">₹0</strong></div>
-            <div class="tax-meta"><span>Monthly TDS estimate</span><strong id="oldTds">₹0</strong></div>
+            <div class="tax-amount" id="oldTaxAmount">—</div>
+            <div class="tax-meta"><span>Taxable income</span><strong id="oldTaxable">—</strong></div>
+            <div class="tax-meta"><span>Monthly TDS estimate</span><strong id="oldTds">—</strong></div>
             <div class="tax-card-footer" id="oldFooter">Includes modeled HRA and 80C deductions</div>
           </article>
         </div>
-        <div class="saving-banner"><div class="saving-icon">✦</div><div><strong id="savingTitle">Estimated regime comparison</strong><p id="savingDescription">Compare modeled annual tax to understand the difference.</p></div><div class="saving-amount" id="savingAmount">₹0 <small>/ year</small></div></div>
-        <p class="tax-disclaimer"><strong>Tax estimate note:</strong> This is an educational model for salaried resident individuals using AY 2026–27 sample slabs and an illustrative Andhra Pradesh professional-tax schedule. It excludes surcharge, special-rate/other income, age-based old-regime changes, employer contributions, and individual eligibility checks. Verify current rules before relying on results.</p>
+        <div class="saving-banner"><div class="saving-icon">✦</div><div><strong id="savingTitle">Tax regime comparison</strong><p id="savingDescription">Calculate payroll to compare annual tax estimates.</p></div><div class="saving-amount" id="savingAmount">—</div></div>
+        <p class="tax-disclaimer"><strong>Tax estimate note:</strong> Tax is estimated from configured salary-only rules and simplified slab calculations. Rebate eligibility, special-rate or other income, surcharge, age-specific rules and exemptions may change the result. Professional tax must match the employee's jurisdiction. Verify official rules before using a calculation for actual payroll.</p>
       </section>
 
       <section class="panel advisor-panel">
@@ -162,7 +165,7 @@
         <div class="scenario-table-wrap">
           <table class="scenario-table">
             <thead><tr><th>Other 80C / year</th><th>Old-regime tax</th><th>New-regime tax</th><th>Old-regime net / month</th><th></th></tr></thead>
-            <tbody id="scenarioRows"></tbody>
+            <tbody id="scenarioRows"><tr><td colspan="5">Calculate payroll to explore investment scenarios.</td></tr></tbody>
           </table>
         </div>
         <p class="table-note">The values below replace the “Other 80C investments / year” input for each scenario. PF contribution is considered separately and is included in the modeled 80C cap.</p>
@@ -171,19 +174,19 @@
       <section class="panel payslip-panel" id="salary-slip">
         <div class="section-header-row payslip-heading">
           <div><p class="section-kicker">FINAL OUTPUT</p><h2>Salary slip preview</h2><p class="panel-subtitle">Your calculated payroll in a clean, shareable format.</p></div>
-          <div class="payslip-actions"><button class="button button-secondary" id="printSlip" type="button"><span aria-hidden="true">▧</span> Print slip</button><button class="button button-primary" id="downloadSlip" type="button"><span aria-hidden="true">↓</span> Download .txt</button></div>
+          <div class="payslip-actions"><button class="button button-secondary" id="printSlip" type="button" disabled><span aria-hidden="true">▧</span> Print slip</button><button class="button button-primary" id="downloadSlip" type="button" disabled><span aria-hidden="true">↓</span> Download .txt</button></div>
         </div>
         <div class="payslip-paper" id="payslipPaper">
-          <div class="paper-header"><div class="paper-brand"><span class="brand-mark">P</span><div><strong>paywise</strong><small>SMART PAYROLL</small></div></div><div class="paper-title"><strong>SALARY SLIP</strong><span id="paperMonth">OCTOBER 2026</span></div></div>
-          <div class="paper-employee-grid"><div><span>EMPLOYEE NAME</span><strong id="paperName">Asha Verma</strong></div><div><span>EMPLOYEE ID</span><strong id="paperId">E101</strong></div><div><span>DEPARTMENT</span><strong id="paperDepartment">Engineering</strong></div><div><span>PAY PERIOD</span><strong id="paperPeriod">October 2026</strong></div></div>
-          <div class="paper-columns"><div><h3>Earnings</h3><div class="paper-row"><span>Basic salary</span><strong id="paperBasic">₹60,000</strong></div><div class="paper-row"><span>Dearness allowance</span><strong id="paperDa">₹6,000</strong></div><div class="paper-row"><span>House rent allowance</span><strong id="paperHra">₹30,000</strong></div><div class="paper-row paper-total"><span>Gross salary</span><strong id="paperGross">₹96,000</strong></div></div><div><h3>Deductions</h3><div class="paper-row"><span>Provident fund</span><strong id="paperPf">₹7,920</strong></div><div class="paper-row"><span>Professional tax</span><strong id="paperPt">₹200</strong></div><div class="paper-row"><span>Income tax (TDS)</span><strong id="paperTds">₹0</strong></div><div class="paper-row paper-total"><span>Total deductions</span><strong id="paperDeductions">₹8,120</strong></div></div></div>
-          <div class="paper-net"><div><span>NET SALARY PAYABLE</span><small id="paperRegime">New tax regime · estimate</small></div><strong id="paperNet">₹87,880</strong></div>
-          <div class="paper-annual"><div><span>Annual gross projection</span><strong id="paperAnnualGross">₹11,52,000</strong></div><div><span>Annual tax estimate</span><strong id="paperAnnualTax">₹0</strong></div><div><span>Annual net projection</span><strong id="paperAnnualNet">₹10,54,560</strong></div></div>
-          <p class="paper-footnote">Generated by Paywise demo. Figures are estimates based on configurable sample assumptions and should be validated before actual payroll use.</p>
+          <div class="paper-header"><div class="paper-brand"><span class="brand-mark">P</span><div><strong>paywise</strong><small>SMART PAYROLL</small></div></div><div class="paper-title"><strong>SALARY SLIP</strong><span id="paperMonth">PAY PERIOD</span></div></div>
+          <div class="paper-employee-grid"><div><span>EMPLOYEE NAME</span><strong id="paperName">—</strong></div><div><span>EMPLOYEE ID</span><strong id="paperId">—</strong></div><div><span>DEPARTMENT</span><strong id="paperDepartment">—</strong></div><div><span>PAY PERIOD</span><strong id="paperPeriod">—</strong></div></div>
+          <div class="paper-columns"><div><h3>Earnings</h3><div class="paper-row"><span>Basic salary</span><strong id="paperBasic">—</strong></div><div class="paper-row"><span>Dearness allowance</span><strong id="paperDa">—</strong></div><div class="paper-row"><span>House rent allowance</span><strong id="paperHra">—</strong></div><div class="paper-row paper-total"><span>Gross salary</span><strong id="paperGross">—</strong></div></div><div><h3>Deductions</h3><div class="paper-row"><span>Provident fund</span><strong id="paperPf">—</strong></div><div class="paper-row"><span>Professional tax</span><strong id="paperPt">—</strong></div><div class="paper-row"><span>Income tax (TDS)</span><strong id="paperTds">—</strong></div><div class="paper-row paper-total"><span>Total deductions</span><strong id="paperDeductions">—</strong></div></div></div>
+          <div class="paper-net"><div><span>NET SALARY PAYABLE</span><small id="paperRegime">Estimate not yet calculated</small></div><strong id="paperNet">—</strong></div>
+          <div class="paper-annual"><div><span>Annual gross projection</span><strong id="paperAnnualGross">—</strong></div><div><span>Annual tax estimate</span><strong id="paperAnnualTax">—</strong></div><div><span>Annual net projection</span><strong id="paperAnnualNet">—</strong></div></div>
+          <p class="paper-footnote">Calculated by Paywise from the entered figures. This estimate is not an official employer-issued payslip and should be reviewed against applicable payroll rules.</p>
         </div>
       </section>
 
-      <footer class="footer"><span>© 2026 Paywise Payroll Demo</span><span><span class="footer-dot"></span> Calculated locally in your browser</span><a href="README.md">Project documentation ↗</a></footer>
+      <footer class="footer"><span>© 2026 Paywise Payroll Calculator</span><span><span class="footer-dot"></span> Calculated locally in your browser</span><a href="README.md">Project documentation ↗</a></footer>
     </main>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

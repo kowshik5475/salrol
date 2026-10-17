@@ -1,6 +1,6 @@
 /**
- * Paywise demo payroll engine.
- * Educational estimates only; not a complete payroll/tax compliance engine.
+ * Paywise payroll calculation engine.
+ * Salary and tax rules are configurable estimates, not a complete legal-compliance engine.
  */
 export const CONFIG = Object.freeze({
   daRate: 0.10,
@@ -13,9 +13,13 @@ export const CONFIG = Object.freeze({
   cessRate: 0.04,
   rebateLimitNew: 1_200_000,
   rebateLimitOld: 500_000,
-  // Andhra Pradesh demo schedule: monthly professional tax based on gross salary.
-  // Validate state rules against official notifications before any real payroll use.
-  professionalTaxMonthly(gross) {
+  // Supported built-in professional-tax schedule. Other jurisdictions can use a
+  // manually entered monthly amount until their rules are explicitly configured.
+  professionalTaxMonthly(gross, employee = {}) {
+    if (employee.professionalTaxMode === 'none') return 0;
+    if (employee.professionalTaxMode === 'manual') {
+      return finiteNonNegative(employee.manualPt ?? 0, 'Monthly professional tax');
+    }
     if (gross <= 15_000) return 0;
     if (gross <= 20_000) return 150;
     return 200;
@@ -67,21 +71,30 @@ export function calculateNewRegime(annualGross, config = CONFIG, eligibleForReba
   const gross = finiteNonNegative(annualGross, 'Annual gross salary');
   const taxable = Math.max(0, gross - config.standardDeductionNew);
   const taxBeforeRelief = slabTax(taxable, config.newSlabs);
-  let taxAfterRelief = taxBeforeRelief;
 
-  // Assumes the employee qualifies for Section 87A rebate. Rebate/marginal relief
-  // is modeled on income tax before cess; cess is added to the resulting tax.
   if (eligibleForRebate && taxable <= config.rebateLimitNew) {
-    taxAfterRelief = 0;
-  } else if (eligibleForRebate && taxable > config.rebateLimitNew) {
-    taxAfterRelief = Math.min(taxBeforeRelief, taxable - config.rebateLimitNew);
+    return { regime: 'New tax regime', taxableIncome: taxable, tax: 0, taxBeforeCess: 0 };
+  }
+
+  // Marginal relief is capped against the income-tax liability including cess,
+  // so the modeled total liability cannot exceed income above the rebate limit.
+  const taxWithCess = applyCess(taxBeforeRelief, config);
+  if (eligibleForRebate && taxable > config.rebateLimitNew) {
+    const marginalCap = taxable - config.rebateLimitNew;
+    const finalTax = Math.min(taxWithCess, marginalCap);
+    return {
+      regime: 'New tax regime',
+      taxableIncome: taxable,
+      tax: finalTax,
+      taxBeforeCess: finalTax / (1 + config.cessRate)
+    };
   }
 
   return {
     regime: 'New tax regime',
     taxableIncome: taxable,
-    tax: applyCess(taxAfterRelief, config),
-    taxBeforeCess: taxAfterRelief
+    tax: taxWithCess,
+    taxBeforeCess: taxBeforeRelief
   };
 }
 
@@ -116,12 +129,20 @@ export function calculatePayroll(employee, config = CONFIG) {
   const basic = finiteNonNegative(employee.basic, 'Basic salary');
   const monthlyRent = finiteNonNegative(employee.monthlyRent ?? 0, 'Monthly rent');
   const other80C = finiteNonNegative(employee.other80C ?? 0, 'Other 80C investments');
+  const professionalTaxMode = employee.professionalTaxMode || 'andhra-pradesh';
+  const manualPt = finiteNonNegative(employee.manualPt ?? 0, 'Monthly professional tax');
+  if (!['andhra-pradesh', 'manual', 'none'].includes(professionalTaxMode)) {
+    throw new RangeError('Choose a supported professional-tax calculation method.');
+  }
   const metro = employee.metro !== false;
   const da = basic * config.daRate;
   const hra = basic * (metro ? config.hraMetroRate : config.hraNonMetroRate);
   const gross = basic + da + hra;
   const pf = (basic + da) * config.pfRate;
-  const pt = config.professionalTaxMonthly(gross);
+  const pt = config.professionalTaxMonthly(gross, { ...employee, professionalTaxMode, manualPt });
+  if (pt > gross) {
+    throw new RangeError('Monthly professional tax cannot exceed monthly gross salary.');
+  }
   const annualGross = gross * 12;
   const annualPf = pf * 12;
   const annualPt = pt * 12;
@@ -141,7 +162,7 @@ export function calculatePayroll(employee, config = CONFIG) {
   const net = gross - totalDeductions;
 
   return {
-    employee: { ...employee, basic, monthlyRent, other80C, metro },
+    employee: { ...employee, basic, monthlyRent, other80C, metro, professionalTaxMode, manualPt },
     basic, da, hra, gross, pf, pt, tds, totalDeductions, net,
     annualGross, annualPf, annualPt, annualHra, annualBasicDa,
     annualNet: net * 12,

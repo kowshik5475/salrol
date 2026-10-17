@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { calculatePayroll, calculateNewRegime, calculateOldRegime, slabTax, CONFIG, formatRupees } from '../src/payroll.js';
 
-test('calculates basic, DA, HRA, gross and PF for the sample employee', () => {
+test('calculates basic, DA, HRA, gross and PF for entered salary inputs', () => {
   const result = calculatePayroll({ basic: 60_000, metro: true, monthlyRent: 25_000, other80C: 40_000 });
   assert.equal(result.da, 6_000);
   assert.equal(result.hra, 30_000);
@@ -30,11 +30,11 @@ test('new regime rebate reduces tax to zero for eligible taxable income up to 12
   assert.equal(tax.tax, 0);
 });
 
-test('new regime marginal relief caps pre-cess tax at income above the threshold', () => {
+test('new regime marginal relief caps total modeled liability at income above the threshold', () => {
   const gross = 1_210_000 + CONFIG.standardDeductionNew;
   const tax = calculateNewRegime(gross, CONFIG, true);
-  assert.equal(tax.taxBeforeCess, 10_000);
-  assert.equal(tax.tax, 10_400);
+  assert.equal(tax.tax, 10_000);
+  assert.ok(tax.tax <= tax.taxableIncome - CONFIG.rebateLimitNew);
 });
 
 test('old regime caps combined PF and other 80C deductions at 1.5 lakh', () => {
@@ -51,7 +51,7 @@ test('old regime caps combined PF and other 80C deductions at 1.5 lakh', () => {
   assert.equal(tax.deduction80C, 150_000);
 });
 
-test('professional tax model follows configured Andhra Pradesh demo tiers', () => {
+test('professional tax model follows configured Andhra Pradesh tiers', () => {
   assert.equal(CONFIG.professionalTaxMonthly(15_000), 0);
   assert.equal(CONFIG.professionalTaxMonthly(18_000), 150);
   assert.equal(CONFIG.professionalTaxMonthly(25_000), 200);
@@ -94,6 +94,23 @@ test('HRA exemption respects the least-of-three rule and cannot be negative', ()
 test('ineligible employee does not receive the modeled Section 87A rebate', () => {
   const tax = calculateNewRegime(1_000_000, CONFIG, false);
   assert.ok(tax.tax > 0);
+});
+
+test('professional tax can be entered manually or disabled when not applicable', () => {
+  const base = { basic: 30_000, metro: true, monthlyRent: 0, other80C: 0 };
+  assert.equal(calculatePayroll({ ...base, professionalTaxMode: 'manual', manualPt: 125 }).pt, 125);
+  assert.equal(calculatePayroll({ ...base, professionalTaxMode: 'none' }).pt, 0);
+});
+
+test('rejects manual professional tax greater than gross salary', () => {
+  assert.throws(
+    () => calculatePayroll({ basic: 1_000, metro: true, professionalTaxMode: 'manual', manualPt: 2_000 }),
+    /cannot exceed monthly gross salary/
+  );
+});
+
+test('rejects unsupported professional-tax calculation methods', () => {
+  assert.throws(() => calculatePayroll({ basic: 10_000, professionalTaxMode: 'unknown' }), RangeError);
 });
 
 test('currency formatter uses Indian grouping', () => {

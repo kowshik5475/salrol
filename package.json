@@ -1,9 +1,9 @@
 {
-  "name": "paywise-smart-payroll-demo",
+  "name": "paywise-smart-payroll",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Responsive static payroll calculator demo with salary slip and tax-regime comparison.",
+  "description": "Responsive payroll calculator with salary slip, tax-regime comparison, and automated calculation tests.",
   "scripts": {
     "test": "node --test"
   },
