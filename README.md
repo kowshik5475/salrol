@@ -4,6 +4,21 @@ Paywise is a **Java 17+ payroll application with a responsive browser frontend**
 
 > **Educational project, not a certified payroll system.** Tax, HRA, PF and professional-tax calculations use simplified configurable assumptions. Verify the applicable law and employer rules before using a result for actual payroll.
 
+## Focused tool pages
+
+The browser interface uses a focused workspace for each tool rather than showing every tool in one long scrolling dashboard. Use the sidebar (or the horizontal navigation on mobile) to switch pages; the URL hash changes so each workspace can be bookmarked in the current browser session.
+
+- **Overview:** Quick links to every tool and the latest calculated summary for the current session.
+- **Payroll calculator:** Employee inputs, salary breakdown and the Java calculation result.
+- **Tax advisor:** Old/new regime estimates and 80C what-if scenarios.
+- **Salary offer simulator:** Side-by-side modeled take-home comparison for Offer A and Offer B.
+- **Smart payroll audit:** Rule-based review flags for the current calculation.
+- **Salary change explainer:** Separate view of changes against the latest earlier saved period.
+- **Payroll history:** Saved snapshots and the option to reuse previous inputs.
+- **Salary slip:** A dedicated printable/downloadable salary statement.
+
+The page navigation only changes the frontend view. All salary calculations, offer comparisons, audit rules, and salary-change calculations remain in the Java backend.
+
 ## Features
 
 ### 1. Payroll calculator
@@ -102,9 +117,9 @@ paywise-java-frontend/
 ├── PayrollHistoryStore.java # Append-only payroll snapshot journal
 ├── PayrollInsights.java     # Rule-based audit and pay-change explanation
 ├── PayrollTests.java        # Dependency-free automated tests
-├── index.html               # Browser frontend structure
-├── styles.css              # Responsive dashboard styling
-├── src/app.js              # API client and UI rendering only
+├── index.html               # Routed tool-page frontend structure
+├── styles.css              # Responsive styling for all tool pages
+├── src/app.js               # Page navigation, API client and UI rendering
 ├── run.bat / run.sh         # Compile, test, run launchers
 ├── Dockerfile               # Container build
 ├── render.yaml              # Example hosted-service configuration

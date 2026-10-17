@@ -170,7 +170,7 @@ function renderScenarios(employee, scenarios) {
       $('#other80C').value = String(investment);
       const ok = await refreshPayroll({ live: true });
       if (ok) toast(`Applied ${formatRupees(investment)} annual 80C investment amount.`);
-      $('#calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      navigateTo('calculator');
     });
     actionCell.append(action);
     tr.append(actionCell);
@@ -338,7 +338,7 @@ async function loadHistory() {
         const manual = e.professionalTaxMode === 'manual';
         $('#manualPtField').classList.toggle('hidden', !manual); $('#manualPt').required = manual;
         hasCalculated = false;
-        $('#calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        navigateTo('calculator');
         if (await refreshPayroll()) toast('Saved inputs loaded and recalculated using the current model.');
       });
       actionCell.append(button); tr.append(actionCell); rows.append(tr);
@@ -603,7 +603,7 @@ $('#clearForm').addEventListener('click', () => {
 $('#downloadSlip').addEventListener('click', downloadSlip);
 $('#downloadSlipTop').addEventListener('click', () => {
   downloadSlip();
-  if (currentPayroll) $('#salary-slip').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (currentPayroll) navigateTo('salary-slip');
 });
 $('#printSlip').addEventListener('click', () => {
   if (currentPayroll) window.print();
@@ -619,24 +619,96 @@ for (const prefix of ['offerA', 'offerB']) {
 $('#savePayrollRecord').addEventListener('click', saveCurrentPayroll);
 $('#refreshHistory').addEventListener('click', loadHistory);
 
-// Highlight the visible workspace section in the sidebar (desktop).
+// Route-based tool workspace: one focused tool page is visible at a time.
 const navLinks = [...document.querySelectorAll('.nav-link')];
-if ('IntersectionObserver' in window) {
-  const sectionObserver = new IntersectionObserver((entries) => {
-    const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if (!visible) return;
-    navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${visible.target.id}`));
-  }, { rootMargin: '-15% 0px -65% 0px', threshold: [0, 0.1, 0.25, 0.5] });
-  ['overview', 'calculator', 'tax-advisor', 'offer-simulator', 'payroll-audit', 'payroll-history', 'salary-slip'].forEach(id => {
-    const target = document.getElementById(id);
-    if (target) sectionObserver.observe(target);
+const pageConfig = {
+  overview: {
+    title: 'Payroll intelligence',
+    description: 'Choose a workspace below. Each tool has a focused page to keep calculations and insights easy to follow.',
+    eyebrow: 'PAYROLL WORKSPACE',
+    breadcrumb: 'Overview'
+  },
+  calculator: {
+    title: 'Payroll calculator',
+    description: 'Enter employee details to calculate salary components, deductions and take-home pay using the Java engine.',
+    eyebrow: 'CORE TOOL · JAVA CALCULATION ENGINE',
+    breadcrumb: 'Payroll calculator'
+  },
+  'tax-advisor': {
+    title: 'Tax advisor',
+    description: 'Compare modeled old and new tax regimes, then explore how different 80C investment scenarios affect the estimate.',
+    eyebrow: 'TAX PLANNING · ESTIMATES ONLY',
+    breadcrumb: 'Tax advisor'
+  },
+  'offer-simulator': {
+    title: 'Salary offer simulator',
+    description: 'Compare two job offers with different basic pay, city, rent, investment and deduction assumptions.',
+    eyebrow: 'CAREER DECISION TOOL',
+    breadcrumb: 'Salary offer simulator'
+  },
+  'payroll-audit': {
+    title: 'Smart payroll audit',
+    description: 'Review transparent, rule-based flags for unusual values and inconsistent payroll calculations.',
+    eyebrow: 'PAYROLL QUALITY CHECKS',
+    breadcrumb: 'Smart payroll audit'
+  },
+  'salary-change': {
+    title: 'Salary change explainer',
+    description: 'Compare the current calculation with an earlier saved payroll period and see which amounts changed.',
+    eyebrow: 'PAY-PERIOD COMPARISON',
+    breadcrumb: 'Salary change explainer'
+  },
+  'payroll-history': {
+    title: 'Payroll history',
+    description: 'Browse saved payroll snapshots, inspect the model version and reload previous employee inputs.',
+    eyebrow: 'SAVED RECORDS · LOCAL JOURNAL',
+    breadcrumb: 'Payroll history'
+  },
+  'salary-slip': {
+    title: 'Salary slip',
+    description: 'Review the latest calculated salary statement, then print it or download a text copy.',
+    eyebrow: 'PAYROLL OUTPUT',
+    breadcrumb: 'Salary slip'
+  }
+};
+
+function applyRoute(route = location.hash.slice(1)) {
+  const page = Object.hasOwn(pageConfig, route) ? route : 'overview';
+  document.querySelectorAll('[data-page-view]').forEach((view) => {
+    view.classList.toggle('route-hidden', view.dataset.pageView !== page);
   });
+  navLinks.forEach((link) => {
+    const active = link.getAttribute('href') === `#${page}`;
+    link.classList.toggle('active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+  const info = pageConfig[page];
+  setText('currentPageHeading', info.title);
+  setText('currentPageDescription', info.description);
+  setText('currentPageEyebrow', info.eyebrow);
+  setText('currentPageTitle', info.breadcrumb);
+  document.title = `${info.title} — Paywise Intelligence`;
+  requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'auto' }));
 }
+
+function navigateTo(page) {
+  if (!Object.hasOwn(pageConfig, page)) return;
+  if (location.hash === `#${page}`) applyRoute(page);
+  else location.hash = page;
+}
+
+window.addEventListener('hashchange', () => applyRoute());
+navLinks.forEach((link) => link.addEventListener('click', () => {
+  const page = link.getAttribute('href')?.slice(1);
+  if (page) navigateTo(page);
+}));
 
 // Start with no employee or payroll figures preloaded.
 const now = new Date();
 $('#salaryMonth').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 $('#offerSalaryMonth').value = $('#salaryMonth').value;
+applyRoute();
 renderEmptyState();
 loadHistory();
 
