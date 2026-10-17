@@ -1,13 +1,14 @@
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
-COPY PayrollApp.java PayrollServer.java .
-RUN mkdir -p out && javac -encoding UTF-8 -Xlint:all -d out PayrollApp.java PayrollServer.java
+COPY PayrollApp.java PayrollServer.java PayrollHistoryStore.java PayrollInsights.java PayrollTests.java .
+RUN mkdir -p out && javac -encoding UTF-8 -Xlint:all -d out PayrollApp.java PayrollServer.java PayrollHistoryStore.java PayrollInsights.java PayrollTests.java && java -ea -cp out PayrollTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/out ./out
 COPY index.html styles.css ./
-RUN mkdir -p src
+RUN mkdir -p src /app/data
+ENV PAYWISE_DATA_DIR=/app/data
 COPY src/app.js ./src/app.js
 ENV HOST=0.0.0.0
 EXPOSE 8080

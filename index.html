@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f8fc">
-  <meta name="description" content="Java-powered payroll calculator with a browser frontend, tax estimates, annual projections, and printable salary slips.">
-  <title>Paywise — Java Smart Payroll Calculator</title>
+  <meta name="description" content="Java-powered payroll intelligence with an offer simulator, explainable audit checks, salary-change analysis, and saved payroll history.">
+  <title>Paywise Intelligence — Java Payroll</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%234f46e5'/%3E%3Cpath d='M27 23h28a19 19 0 0 1 0 38H43v16H27zm16 14v10h12a5 5 0 0 0 0-10z' fill='white'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="src/app.js"></script>
@@ -15,7 +15,7 @@
     <aside class="sidebar" aria-label="Main navigation">
       <a class="brand" href="#overview" aria-label="Paywise home">
         <span class="brand-mark" aria-hidden="true">P</span>
-        <span><strong>paywise</strong><small>SMART PAYROLL</small></span>
+        <span><strong>paywise</strong><small>PAYROLL INTELLIGENCE</small></span>
       </a>
 
       <div class="nav-label">WORKSPACE</div>
@@ -23,6 +23,9 @@
         <a class="nav-link active" href="#overview"><span class="nav-icon">▦</span> Overview</a>
         <a class="nav-link" href="#calculator"><span class="nav-icon">⌁</span> Payroll calculator</a>
         <a class="nav-link" href="#tax-advisor"><span class="nav-icon">◈</span> Tax advisor</a>
+        <a class="nav-link" href="#offer-simulator"><span class="nav-icon">⇄</span> Offer simulator</a>
+        <a class="nav-link" href="#payroll-audit"><span class="nav-icon">✓</span> Smart audit</a>
+        <a class="nav-link" href="#payroll-history"><span class="nav-icon">◷</span> Payroll history</a>
         <a class="nav-link" href="#salary-slip"><span class="nav-icon">▤</span> Salary slip</a>
       </nav>
 
@@ -52,8 +55,8 @@
       <section class="page-intro">
         <div>
           <p class="eyebrow">PAYROLL WORKSPACE <span>•</span> <span id="periodLabel">OCTOBER 2026</span></p>
-          <h1>Payroll overview</h1>
-          <p class="intro-copy">A clearer view of earnings, deductions, and what lands in your account.</p>
+          <h1>Payroll intelligence</h1>
+          <p class="intro-copy">Calculate take-home pay, compare job offers, inspect payroll changes, and keep an audit trail.</p>
         </div>
         
       </section>
@@ -172,6 +175,79 @@
         <p class="table-note">The values below replace the “Other 80C investments / year” input for each scenario. The selected PF basis determines the modeled PF amount, which is included in the ₹1,50,000 modeled 80C cap.</p>
       </section>
 
+      <section class="panel offer-panel" id="offer-simulator">
+        <div class="section-header-row">
+          <div><p class="section-kicker">SMART TOOL 01</p><h2>Salary offer simulator</h2><p class="panel-subtitle">Compare two monthly salary structures using the Java payroll engine.</p></div>
+          <span class="round-icon">⇄</span>
+        </div>
+        <form id="offerForm">
+          <div class="offer-shared form-grid">
+            <label class="field"><span>Pay period</span><input id="offerSalaryMonth" name="offerSalaryMonth" type="month" required></label>
+            <label class="field"><span>Section 87A rebate eligibility</span><select id="offerRebateEligibility" name="offerRebateEligibility" required><option value="" selected disabled>Select eligibility</option><option value="eligible">Eligible resident individual</option><option value="ineligible">Not eligible / unsure</option></select></label>
+          </div>
+          <div class="offer-grid">
+            <article class="offer-card">
+              <div class="offer-card-heading"><span class="offer-letter">A</span><div><h3>Offer A</h3><p>Company / role details</p></div></div>
+              <div class="form-grid">
+                <label class="field field-full"><span>Offer name</span><input id="offerAName" name="offerAName" placeholder="Company or role A" required maxlength="120"></label>
+                <label class="field field-full"><span>Monthly basic salary <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="offerABasic" name="offerABasic" type="number" min="0" max="100000000" step="0.01" required placeholder="0.00"></div></label>
+                <label class="field"><span>City type</span><select id="offerACityType" name="offerACityType" required><option value="" disabled selected>Select</option><option value="metro">Metro</option><option value="nonmetro">Non-metro</option></select></label>
+                <label class="field"><span>Monthly rent <em>₹</em></span><input id="offerARent" name="offerARent" type="number" min="0" max="100000000" step="0.01" value="0" required></label>
+                <label class="field field-full"><span>Other eligible 80C investments / year <em>₹</em></span><input id="offerA80C" name="offerA80C" type="number" min="0" max="100000000" step="0.01" value="0" required></label>
+                <label class="field"><span>PF contribution model</span><select id="offerAPfMode" name="offerAPfMode"><option value="full-basic-da">12% of Basic + DA</option><option value="wage-ceiling">12% up to ₹15,000 wage base</option></select></label>
+                <label class="field"><span>Professional tax</span><select id="offerAPtMode" name="offerAPtMode"><option value="andhra-pradesh">Andhra Pradesh schedule</option><option value="manual">Manual amount</option><option value="none">None</option></select></label>
+                <label class="field field-full hidden" id="offerAManualPtField"><span>Monthly professional tax <em>₹</em></span><input id="offerAManualPt" name="offerAManualPt" type="number" min="0" max="100000" step="0.01" value="0"></label>
+              </div>
+            </article>
+            <article class="offer-card">
+              <div class="offer-card-heading"><span class="offer-letter offer-letter-b">B</span><div><h3>Offer B</h3><p>Company / role details</p></div></div>
+              <div class="form-grid">
+                <label class="field field-full"><span>Offer name</span><input id="offerBName" name="offerBName" placeholder="Company or role B" required maxlength="120"></label>
+                <label class="field field-full"><span>Monthly basic salary <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="offerBBasic" name="offerBBasic" type="number" min="0" max="100000000" step="0.01" required placeholder="0.00"></div></label>
+                <label class="field"><span>City type</span><select id="offerBCityType" name="offerBCityType" required><option value="" disabled selected>Select</option><option value="metro">Metro</option><option value="nonmetro">Non-metro</option></select></label>
+                <label class="field"><span>Monthly rent <em>₹</em></span><input id="offerBRent" name="offerBRent" type="number" min="0" max="100000000" step="0.01" value="0" required></label>
+                <label class="field field-full"><span>Other eligible 80C investments / year <em>₹</em></span><input id="offerB80C" name="offerB80C" type="number" min="0" max="100000000" step="0.01" value="0" required></label>
+                <label class="field"><span>PF contribution model</span><select id="offerBPfMode" name="offerBPfMode"><option value="full-basic-da">12% of Basic + DA</option><option value="wage-ceiling">12% up to ₹15,000 wage base</option></select></label>
+                <label class="field"><span>Professional tax</span><select id="offerBPtMode" name="offerBPtMode"><option value="andhra-pradesh">Andhra Pradesh schedule</option><option value="manual">Manual amount</option><option value="none">None</option></select></label>
+                <label class="field field-full hidden" id="offerBManualPtField"><span>Monthly professional tax <em>₹</em></span><input id="offerBManualPt" name="offerBManualPt" type="number" min="0" max="100000" step="0.01" value="0"></label>
+              </div>
+            </article>
+          </div>
+          <div class="form-actions"><button class="button button-primary" type="submit" id="compareOffersButton">Compare offers <span aria-hidden="true">→</span></button></div>
+          <p class="form-error" id="offerError" role="alert" hidden></p>
+        </form>
+        <div id="offerResults" class="offer-results" hidden>
+          <div class="offer-winner-banner"><div><span class="section-kicker">MODELED TAKE-HOME COMPARISON</span><h3 id="offerWinner">—</h3><p id="offerSummary">—</p></div><div class="offer-winner-amount" id="offerDifference">—</div></div>
+          <div class="offer-result-grid" id="offerResultCards"></div>
+          <p class="table-note" id="offerNotice"></p>
+        </div>
+      </section>
+
+      <section class="panel audit-panel" id="payroll-audit">
+        <div class="section-header-row">
+          <div><p class="section-kicker">SMART TOOL 02</p><h2>Payroll audit & change explainer</h2><p class="panel-subtitle">Rule-based checks and a fact-based explanation against the latest earlier saved pay period.</p></div>
+          <span class="round-icon">✓</span>
+        </div>
+        <div id="anomalySummary" class="audit-summary">Calculate payroll to run the rule-based checks.</div>
+        <div id="anomalyList" class="anomaly-list"><p class="empty-note">Potential issues will appear here after you calculate payroll.</p></div>
+        <div class="change-explainer">
+          <div class="change-heading"><div><h3>Why did take-home pay change?</h3><p id="changeMessage">Calculate payroll and save a previous period to compare changes.</p></div><span class="tag tag-neutral" id="changePeriodTag">NO BASELINE</span></div>
+          <div id="changeMetrics" class="change-metrics"></div>
+          <ul id="changeExplanations" class="change-explanations"></ul>
+        </div>
+        <div class="audit-actions"><button class="button button-primary" type="button" id="savePayrollRecord" disabled>Save payroll snapshot to audit trail</button><span class="field-hint">Saves only when you click. Each save creates an append-only snapshot.</span></div>
+        <p class="form-error" id="saveHistoryError" role="alert" hidden></p>
+      </section>
+
+      <section class="panel history-panel" id="payroll-history">
+        <div class="section-header-row">
+          <div><p class="section-kicker">SMART TOOL 03</p><h2>Payroll history & audit trail</h2><p class="panel-subtitle">Review saved snapshots, salary results, and the calculation-model version used.</p></div>
+          <button class="button button-secondary button-small" type="button" id="refreshHistory">Refresh history</button>
+        </div>
+        <div class="history-table-wrap"><table class="scenario-table history-table"><thead><tr><th>Pay period</th><th>Employee</th><th>Gross / month</th><th>Net / month</th><th>Annual tax</th><th>Model / saved</th><th></th></tr></thead><tbody id="historyRows"><tr><td colspan="7">Loading saved history…</td></tr></tbody></table></div>
+        <p class="table-note" id="historyStatus">History is stored in the Java server's local data folder. Configure a persistent volume for hosted deployments, or saved records may reset after redeploys.</p>
+      </section>
+
       <section class="panel payslip-panel" id="salary-slip">
         <div class="section-header-row payslip-heading">
           <div><p class="section-kicker">FINAL OUTPUT</p><h2>Salary slip preview</h2><p class="panel-subtitle">Your calculated payroll in a clean, shareable format.</p></div>
@@ -187,7 +263,7 @@
         </div>
       </section>
 
-      <footer class="footer"><span>© 2026 Paywise Payroll Calculator</span><span><span class="footer-dot"></span> Calculated locally in your browser</span><a href="README.md">Project documentation ↗</a></footer>
+      <footer class="footer"><span>© 2026 Paywise Payroll Calculator</span><span><span class="footer-dot"></span> Java engine with browser frontend</span><a href="README.md">Project documentation ↗</a></footer>
     </main>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

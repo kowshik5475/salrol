@@ -84,8 +84,9 @@ function setAmountWithPeriod(id, value, suffix = '/ year') {
 }
 
 function setSlipActionsEnabled(enabled) {
-  ['downloadSlipTop', 'downloadSlip', 'printSlip'].forEach((id) => {
-    $(`#${id}`).disabled = !enabled;
+  ['downloadSlipTop', 'downloadSlip', 'printSlip', 'savePayrollRecord'].forEach((id) => {
+    const button = $(`#${id}`);
+    if (button) button.disabled = !enabled;
   });
 }
 
@@ -201,6 +202,210 @@ function renderSlip(payroll) {
   setText('paperAnnualNet', formatRupees(payroll.annualNet));
 }
 
+function renderInsights(insights) {
+  const summary = $('#anomalySummary');
+  summary.textContent = insights?.summary || 'No audit insights were returned by the Java engine.';
+  summary.className = `audit-summary ${insights?.anomalyCount ? 'has-flags' : 'all-clear'}`;
+  const list = $('#anomalyList');
+  list.replaceChildren();
+  const anomalies = insights?.anomalies || [];
+  if (!anomalies.length) {
+    const note = document.createElement('p');
+    note.className = 'empty-note';
+    note.textContent = 'No rule-based review flags for this calculation. This does not guarantee that every statutory or employer-specific payroll rule is satisfied.';
+    list.append(note);
+  } else {
+    anomalies.forEach((item) => {
+      const card = document.createElement('article');
+      card.className = `anomaly-card severity-${item.severity || 'info'}`;
+      const heading = document.createElement('strong');
+      heading.textContent = item.title;
+      const body = document.createElement('p');
+      body.textContent = item.detail;
+      const badge = document.createElement('span');
+      badge.className = 'anomaly-severity';
+      badge.textContent = item.severity === 'high' ? 'HIGH REVIEW' : item.severity === 'warning' ? 'CHECK' : 'INFO';
+      card.append(badge, heading, body);
+      list.append(card);
+    });
+  }
+
+  const change = insights?.change;
+  const metrics = $('#changeMetrics');
+  const explanations = $('#changeExplanations');
+  metrics.replaceChildren();
+  explanations.replaceChildren();
+  if (!change?.available) {
+    setText('changeMessage', change?.message || 'Save a previous payroll record to explain changes.');
+    setText('changePeriodTag', 'NO BASELINE');
+    return;
+  }
+  setText('changeMessage', `Compared with the saved ${change.previousMonth} payroll record.`);
+  setText('changePeriodTag', `VS ${change.previousMonth}`);
+  [
+    ['Gross change', change.grossDelta, change.grossPercent],
+    ['Take-home change', change.netDelta, change.netPercent],
+    ['Deduction change', change.deductionsDelta, null],
+    ['Annual tax change', change.annualTaxDelta, null]
+  ].forEach(([label, value, pct]) => {
+    const card = document.createElement('div');
+    card.className = 'change-metric';
+    const title = document.createElement('span'); title.textContent = label;
+    const amount = document.createElement('strong'); amount.textContent = signedMoney(value);
+    const meta = document.createElement('small'); meta.textContent = pct === null ? 'between saved periods' : `${pct > 0 ? '+' : ''}${Number(pct).toFixed(1)}% vs previous`;
+    card.append(title, amount, meta); metrics.append(card);
+  });
+  (change.explanations || []).forEach((item) => {
+    const li = document.createElement('li'); li.textContent = item; explanations.append(li);
+  });
+}
+
+function signedMoney(value) {
+  const n = Number(value) || 0;
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatRupees(Math.abs(n))}`;
+}
+
+function renderOfferCompare(data) {
+  const results = $('#offerResults');
+  results.hidden = false;
+  const comparison = data.comparison;
+  setText('offerWinner', `${comparison.winner} has the higher modeled take-home`);
+  setText('offerSummary', comparison.summary);
+  setText('offerDifference', `${formatRupees(comparison.monthlyNetDifference)} / month`);
+  setText('offerNotice', data.notice || 'Compare the full compensation packages before deciding.');
+  const cards = $('#offerResultCards');
+  cards.replaceChildren();
+  [data.offerA, data.offerB].forEach((offer, index) => {
+    const card = document.createElement('article');
+    card.className = `offer-output-card ${comparison.winnerCode === (index === 0 ? 'A' : 'B') ? 'offer-output-winner' : ''}`;
+    const heading = document.createElement('div'); heading.className = 'offer-output-heading';
+    const name = document.createElement('h3'); name.textContent = offer.offerLabel;
+    const status = document.createElement('span'); status.className = 'tag tag-neutral'; status.textContent = comparison.winnerCode === (index === 0 ? 'A' : 'B') ? 'HIGHER NET' : 'ALTERNATIVE';
+    heading.append(name, status);
+    const main = document.createElement('div'); main.className = 'offer-output-net';
+    const label = document.createElement('span'); label.textContent = 'Modeled net / month';
+    const amount = document.createElement('strong'); amount.textContent = formatRupees(offer.net);
+    main.append(label, amount);
+    const metrics = document.createElement('dl'); metrics.className = 'offer-output-metrics';
+    const rows = [
+      ['Monthly gross', offer.gross], ['Monthly PF', offer.pf], ['Monthly professional tax', offer.pt],
+      ['Selected regime', offer.chosen.regime], ['Annual tax estimate', offer.chosen.tax], ['Annual net projection', offer.annualNet]
+    ];
+    rows.forEach(([key, value]) => {
+      const wrap = document.createElement('div');
+      const dt = document.createElement('dt'); dt.textContent = key;
+      const dd = document.createElement('dd'); dd.textContent = typeof value === 'number' ? formatRupees(value) : value;
+      wrap.append(dt, dd); metrics.append(wrap);
+    });
+    card.append(heading, main, metrics);
+    cards.append(card);
+  });
+}
+
+async function loadHistory() {
+  const rows = $('#historyRows');
+  try {
+    const response = await fetch('/api/history?limit=100', { cache: 'no-store' });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Unable to read payroll history.');
+    rows.replaceChildren();
+    if (!data.records.length) {
+      const tr = document.createElement('tr'); const td = document.createElement('td');
+      td.colSpan = 7; td.textContent = 'No saved payroll snapshots yet. Calculate a payroll and click “Save payroll snapshot to audit trail”.';
+      tr.append(td); rows.append(tr);
+    }
+    data.records.forEach((record) => {
+      const tr = document.createElement('tr');
+      const cells = [record.salaryMonth, `${record.employeeName} (${record.employeeId})`, formatRupees(record.gross), formatRupees(record.net), formatRupees(record.annualTax), `${record.modelVersion}\n${new Date(record.savedAt).toLocaleString()}`];
+      cells.forEach((value) => { const td = document.createElement('td'); td.textContent = value; tr.append(td); });
+      const actionCell = document.createElement('td');
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'scenario-select'; button.textContent = 'Use inputs';
+      button.addEventListener('click', async () => {
+        const e = record;
+        $('#employeeName').value = e.employeeName;
+        $('#employeeId').value = e.employeeId;
+        const dept = $('#department');
+        dept.value = [...dept.options].some(o => o.value === e.department || o.textContent === e.department) ? e.department : 'Other';
+        $('#salaryMonth').value = e.salaryMonth;
+        $('#basicSalary').value = e.inputBasic;
+        $('#cityType').value = e.metro ? 'metro' : 'nonmetro';
+        $('#monthlyRent').value = e.monthlyRent;
+        $('#other80C').value = e.other80C;
+        $('#rebateEligibility').value = e.eligibleForRebate ? 'eligible' : 'ineligible';
+        $('#professionalTaxMode').value = e.professionalTaxMode;
+        $('#pfContributionMode').value = e.pfContributionMode;
+        $('#manualPt').value = e.manualPt;
+        const manual = e.professionalTaxMode === 'manual';
+        $('#manualPtField').classList.toggle('hidden', !manual); $('#manualPt').required = manual;
+        hasCalculated = false;
+        $('#calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (await refreshPayroll()) toast('Saved inputs loaded and recalculated using the current model.');
+      });
+      actionCell.append(button); tr.append(actionCell); rows.append(tr);
+    });
+    setText('historyStatus', `${data.count} saved snapshot(s) shown · Current model: ${data.modelVersion}. Use “Use inputs” to recalculate an entry under current rules.`);
+  } catch (error) {
+    rows.replaceChildren();
+    const tr = document.createElement('tr'); const td = document.createElement('td'); td.colSpan = 7;
+    td.textContent = error instanceof Error ? error.message : 'Payroll history is unavailable.';
+    tr.append(td); rows.append(tr);
+    setText('historyStatus', 'The audit journal may be unavailable until the Java server is started or its data directory is writable.');
+  }
+}
+
+async function saveCurrentPayroll() {
+  if (!currentPayroll) return;
+  const error = $('#saveHistoryError'); error.hidden = true;
+  const payload = new URLSearchParams({
+    id: currentPayroll.employee.id, name: currentPayroll.employee.name,
+    department: currentPayroll.employee.department, salaryMonth: currentPayroll.employee.salaryMonth,
+    basic: String(currentPayroll.employee.basic), cityType: currentPayroll.employee.metro ? 'metro' : 'nonmetro',
+    monthlyRent: String(currentPayroll.employee.monthlyRent), other80C: String(currentPayroll.employee.other80C),
+    rebateEligibility: currentPayroll.employee.eligibleForRebate ? 'eligible' : 'ineligible',
+    professionalTaxMode: currentPayroll.employee.professionalTaxMode,
+    pfContributionMode: currentPayroll.employee.pfContributionMode, manualPt: String(currentPayroll.employee.manualPt)
+  });
+  try {
+    const response = await fetch('/api/history', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: payload.toString() });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not save the payroll snapshot.');
+    toast('Payroll snapshot saved to the audit trail.');
+    await loadHistory();
+    await refreshPayroll({ live: true });
+  } catch (err) {
+    error.textContent = err instanceof Error ? err.message : 'Could not save payroll history.';
+    error.hidden = false;
+  }
+}
+
+async function compareOffers(event) {
+  event.preventDefault();
+  const error = $('#offerError'); error.hidden = true;
+  const data = new FormData($('#offerForm'));
+  for (const prefix of ['offerA', 'offerB']) {
+    const name = String(data.get(`${prefix}Name`) || '').trim();
+    const basic = Number(data.get(`${prefix}Basic`));
+    if (!name || !Number.isFinite(basic) || basic < 0) {
+      error.textContent = `Enter a valid name and non-negative monthly basic salary for ${prefix === 'offerA' ? 'Offer A' : 'Offer B'}.`;
+      error.hidden = false; return;
+    }
+  }
+  const button = $('#compareOffersButton'); button.disabled = true; button.textContent = 'Comparing in Java…';
+  try {
+    const response = await fetch('/api/offer-compare', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: new URLSearchParams(data).toString() });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Offer comparison failed.');
+    renderOfferCompare(result);
+    toast('Both offers calculated by the Java engine.');
+    $('#offerResults').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } catch (err) {
+    error.textContent = err instanceof Error ? err.message : 'Unable to compare offers.';
+    error.hidden = false;
+  } finally {
+    button.disabled = false; button.innerHTML = 'Compare offers <span aria-hidden="true">→</span>';
+  }
+}
+
 function renderEmptyState() {
   currentPayroll = null;
   setSlipActionsEnabled(false);
@@ -237,6 +442,8 @@ function renderEmptyState() {
   cell.textContent = 'Calculate payroll to explore investment scenarios.';
   row.append(cell);
   $('#scenarioRows').append(row);
+  renderInsights({ summary: 'Calculate payroll to run the rule-based checks.', anomalyCount: 0, anomalies: [], change: { available: false, message: 'Calculate payroll and save a previous period to compare changes.' } });
+  $('#savePayrollRecord').disabled = true;
 }
 
 async function refreshPayroll({ live = false } = {}) {
@@ -294,6 +501,7 @@ async function refreshPayroll({ live = false } = {}) {
     renderTaxComparison(currentPayroll);
     renderScenarios(employee, currentPayroll.scenarios);
     renderSlip(currentPayroll);
+    renderInsights(currentPayroll.insights);
     setSlipActionsEnabled(true);
     return true;
   } catch (error) {
@@ -401,6 +609,16 @@ $('#printSlip').addEventListener('click', () => {
   if (currentPayroll) window.print();
 });
 
+// Offer simulator inputs are independent from the main employee payroll form.
+$('#offerForm').addEventListener('submit', compareOffers);
+for (const prefix of ['offerA', 'offerB']) {
+  $(`#${prefix}PtMode`).addEventListener('change', () => {
+    $(`#${prefix}ManualPtField`).classList.toggle('hidden', $(`#${prefix}PtMode`).value !== 'manual');
+  });
+}
+$('#savePayrollRecord').addEventListener('click', saveCurrentPayroll);
+$('#refreshHistory').addEventListener('click', loadHistory);
+
 // Highlight the visible workspace section in the sidebar (desktop).
 const navLinks = [...document.querySelectorAll('.nav-link')];
 if ('IntersectionObserver' in window) {
@@ -409,7 +627,7 @@ if ('IntersectionObserver' in window) {
     if (!visible) return;
     navLinks.forEach(link => link.classList.toggle('active', link.getAttribute('href') === `#${visible.target.id}`));
   }, { rootMargin: '-15% 0px -65% 0px', threshold: [0, 0.1, 0.25, 0.5] });
-  ['overview', 'calculator', 'tax-advisor', 'salary-slip'].forEach(id => {
+  ['overview', 'calculator', 'tax-advisor', 'offer-simulator', 'payroll-audit', 'payroll-history', 'salary-slip'].forEach(id => {
     const target = document.getElementById(id);
     if (target) sectionObserver.observe(target);
   });
@@ -418,7 +636,9 @@ if ('IntersectionObserver' in window) {
 // Start with no employee or payroll figures preloaded.
 const now = new Date();
 $('#salaryMonth').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+$('#offerSalaryMonth').value = $('#salaryMonth').value;
 renderEmptyState();
+loadHistory();
 
 // Confirm that the real Java backend is reachable; no salary arithmetic is done in this file.
 fetch('/api/health').then((response) => {
@@ -427,7 +647,7 @@ fetch('/api/health').then((response) => {
 }).then((health) => {
   const badge = document.querySelector('.workspace-pill');
   if (badge) badge.innerHTML = '<span></span> JAVA ENGINE ONLINE';
-  document.title = 'Paywise — Java Payroll Calculator';
+  document.title = 'Paywise Intelligence — Java Payroll';
 }).catch(() => {
   const badge = document.querySelector('.workspace-pill');
   if (badge) badge.innerHTML = '<span></span> START JAVA SERVER';

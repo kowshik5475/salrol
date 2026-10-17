@@ -3,7 +3,7 @@ setlocal
 cd /d "%~dp0"
 if not exist out mkdir out
 echo [1/3] Compiling Java application and tests...
-javac -encoding UTF-8 -Xlint:all -d out PayrollApp.java PayrollServer.java PayrollTests.java
+javac -encoding UTF-8 -Xlint:all -d out PayrollApp.java PayrollServer.java PayrollHistoryStore.java PayrollInsights.java PayrollTests.java
 if errorlevel 1 (
   echo Compilation failed. Install JDK 17 or later and retry.
   exit /b 1

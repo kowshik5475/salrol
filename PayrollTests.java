@@ -1,3 +1,8 @@
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.List;
+
 /** Lightweight dependency-free tests. Run with: java -ea PayrollTests */
 public final class PayrollTests {
     private static int passed = 0;
@@ -25,7 +30,11 @@ public final class PayrollTests {
         test("negative salary rejected", PayrollTests::negativeSalary);
         test("invalid professional-tax mode rejected", PayrollTests::invalidProfessionalTaxMode);
         test("salary month validation", PayrollTests::invalidSalaryMonth);
-        System.out.printf("%d/%d tests passed.%n", passed, 21);
+        test("history journal saves and reads snapshots", PayrollTests::historyJournal);
+        test("history finds only an earlier pay period", PayrollTests::previousPayPeriod);
+        test("salary change explainer flags material gross change", PayrollTests::salaryChangeInsight);
+        test("offer comparison uses the Java calculation model", PayrollTests::offerComparison);
+        System.out.printf("%d/%d tests passed.%n", passed, passed + failed);
         if (failed > 0) System.exit(1);
     }
 
@@ -167,6 +176,68 @@ public final class PayrollTests {
         var bad = new PayrollApp.Employee("E101", "Test", "IT", "2026-13", 10_000,
                 true, 0, 0, true, "none", "full-basic-da", 0);
         expectError(() -> PayrollApp.calculate(bad));
+    }
+
+    private static void historyJournal() {
+        try {
+            Path folder = Files.createTempDirectory("paywise-history-test");
+            PayrollHistoryStore store = new PayrollHistoryStore(folder);
+            PayrollApp.Result result = PayrollApp.calculate(employee(60_000, true, 25_000, 40_000,
+                    "andhra-pradesh", 0, true));
+            PayrollHistoryStore.Entry saved = store.append(result);
+            var entries = store.list("E101", 10);
+            if (entries.size() != 1) fail("expected one saved history entry");
+            if (!saved.recordId().equals(entries.get(0).recordId())) fail("record ID changed after reading journal");
+            eq(result.gross(), entries.get(0).gross());
+            eq(result.net(), entries.get(0).net());
+            if (!"paywise-model-1.0".equals(entries.get(0).modelVersion())) fail("missing model version in audit entry");
+            Files.deleteIfExists(store.filePath());
+            Files.deleteIfExists(folder);
+        } catch (Exception ex) { throw new AssertionError("history journal failed", ex); }
+    }
+
+    private static void previousPayPeriod() {
+        try {
+            Path folder = Files.createTempDirectory("paywise-history-previous-test");
+            PayrollHistoryStore store = new PayrollHistoryStore(folder);
+            store.append(PayrollApp.calculate(employee(50_000, true, 10_000, 0, "none", 0, false)));
+            if (store.previousFor("E101", "2026-10") != null) fail("same month should not be the prior period");
+            PayrollHistoryStore.Entry previous = store.previousFor("e101", "2026-11");
+            if (previous == null || !"2026-10".equals(previous.salaryMonth())) fail("October snapshot not selected for November");
+            Files.deleteIfExists(store.filePath());
+            Files.deleteIfExists(folder);
+        } catch (Exception ex) { throw new AssertionError("prior month lookup failed", ex); }
+    }
+
+    private static void salaryChangeInsight() {
+        try {
+            Path folder = Files.createTempDirectory("paywise-insight-test");
+            PayrollHistoryStore store = new PayrollHistoryStore(folder);
+            PayrollApp.Result october = PayrollApp.calculate(employee(50_000, true, 10_000, 0, "none", 0, false));
+            store.append(october);
+            PayrollApp.Employee novemberEmployee = new PayrollApp.Employee("E101", "Test Employee", "Engineering",
+                    "2026-11", 70_000, true, 10_000, 0, false, "none", "full-basic-da", 0);
+            PayrollApp.Result november = PayrollApp.calculate(novemberEmployee);
+            Map<String, Object> insight = PayrollInsights.analyze(november, store.previousFor("E101", "2026-11"));
+            Map<?, ?> change = (Map<?, ?>) insight.get("change");
+            if (!Boolean.TRUE.equals(change.get("available"))) fail("previous-month comparison not available");
+            List<?> anomalies = (List<?>) insight.get("anomalies");
+            boolean flagged = anomalies.stream().filter(Map.class::isInstance).map(Map.class::cast)
+                    .anyMatch(item -> "GROSS_CHANGE".equals(item.get("code")));
+            if (!flagged) fail("expected material gross change flag");
+            Files.deleteIfExists(store.filePath());
+            Files.deleteIfExists(folder);
+        } catch (Exception ex) { throw new AssertionError("salary change insight failed", ex); }
+    }
+
+    private static void offerComparison() {
+        PayrollApp.Result offerA = PayrollApp.calculate(new PayrollApp.Employee("OFFER-A", "Offer A", "Offer comparison",
+                "2026-10", 50_000, true, 12_000, 0, false, "none", "full-basic-da", 0));
+        PayrollApp.Result offerB = PayrollApp.calculate(new PayrollApp.Employee("OFFER-B", "Offer B", "Offer comparison",
+                "2026-10", 65_000, false, 15_000, 0, false, "none", "wage-ceiling", 0));
+        if (!(offerB.net() > offerA.net())) fail("higher modeled salary offer should produce higher modeled net in this test");
+        eq(offerA.gross() - offerA.totalDeductions(), offerA.net());
+        eq(offerB.gross() - offerB.totalDeductions(), offerB.net());
     }
 
     private static void test(String name, Runnable action) {
