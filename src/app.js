@@ -1,4 +1,4 @@
-import { calculatePayroll, formatRupees } from './payroll.js';
+const formatRupees = (value) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value) || 0);
 
 const $ = (selector) => document.querySelector(selector);
 const form = $('#payrollForm');
@@ -6,6 +6,8 @@ const toastElement = $('#toast');
 let toastTimer;
 let currentPayroll = null;
 let hasCalculated = false;
+let requestSequence = 0;
+let inputDebounce = null;
 
 function toast(message) {
   toastElement.textContent = message;
@@ -32,6 +34,7 @@ function getEmployee() {
     other80C: numberFrom('other80C'),
     eligibleForRebate: $('#rebateEligibility').value === 'eligible',
     professionalTaxMode: $('#professionalTaxMode').value,
+    pfContributionMode: $('#pfContributionMode').value,
     manualPt: $('#professionalTaxMode').value === 'manual' ? numberFrom('manualPt') : 0
   };
 }
@@ -44,6 +47,7 @@ function validateEmployee(employee) {
   if (!$('#cityType').value) return 'Select the applicable city type for the HRA estimate.';
   if (!$('#rebateEligibility').value) return 'Choose the employee’s Section 87A rebate eligibility.';
   if (!employee.professionalTaxMode) return 'Choose a professional-tax calculation method.';
+  if (!employee.pfContributionMode) return 'Choose an employee PF contribution basis.';
 
   const numericFields = [
     ['basic', 'Basic salary', 100_000_000],
@@ -127,8 +131,8 @@ function renderTaxComparison(payroll) {
   setText('newTds', formatRupees(newTax.tax / 12));
   setText('oldTaxable', formatRupees(oldTax.taxableIncome));
   setText('oldTds', formatRupees(oldTax.tax / 12));
-  setTaxCard('newTaxCard', 'newBadge', 'newFooter', chosen === newTax, 'Includes modeled standard deduction and rebate rules');
-  setTaxCard('oldTaxCard', 'oldBadge', 'oldFooter', chosen === oldTax, 'Includes modeled HRA, 80C and professional-tax deductions');
+  setTaxCard('newTaxCard', 'newBadge', 'newFooter', chosen.regime === newTax.regime, 'Includes modeled standard deduction and rebate rules');
+  setTaxCard('oldTaxCard', 'oldBadge', 'oldFooter', chosen.regime === oldTax.regime, 'Includes modeled HRA, 80C and professional-tax deductions');
   const saving = Math.abs(newTax.tax - oldTax.tax);
   const regime = newTax.tax <= oldTax.tax ? 'New tax regime' : 'Old tax regime';
   setText('savingTitle', `${regime} has the lower modeled tax`);
@@ -138,20 +142,17 @@ function renderTaxComparison(payroll) {
   setAmountWithPeriod('savingAmount', formatRupees(saving));
 }
 
-function renderScenarios(employee) {
-  const standardValues = [0, 50_000, 100_000, 150_000];
-  const values = [...new Set([...standardValues, employee.other80C])].sort((a, b) => a - b);
+function renderScenarios(employee, scenarios) {
   const tbody = $('#scenarioRows');
   tbody.replaceChildren();
-  values.forEach((investment) => {
-    const scenario = calculatePayroll({ ...employee, other80C: investment });
-    const oldRegimeNet = scenario.gross - scenario.pf - scenario.pt - scenario.oldTax.tax / 12;
+  scenarios.forEach((scenario) => {
+    const investment = scenario.investment;
     const tr = document.createElement('tr');
     [
       formatRupees(investment),
-      formatRupees(scenario.oldTax.tax),
-      formatRupees(scenario.newTax.tax),
-      formatRupees(oldRegimeNet)
+      formatRupees(scenario.oldTax),
+      formatRupees(scenario.newTax),
+      formatRupees(scenario.oldRegimeNet)
     ].forEach((value) => {
       const td = document.createElement('td');
       td.textContent = value;
@@ -161,13 +162,13 @@ function renderScenarios(employee) {
     const action = document.createElement('button');
     action.type = 'button';
     action.className = 'scenario-select';
-    action.textContent = investment === employee.other80C ? 'Current' : 'Apply';
-    action.disabled = investment === employee.other80C;
+    action.textContent = Math.abs(investment - employee.other80C) < 0.001 ? 'Current' : 'Apply';
+    action.disabled = Math.abs(investment - employee.other80C) < 0.001;
     action.setAttribute('aria-label', `Apply ${formatRupees(investment)} annual other-80C investment scenario`);
-    action.addEventListener('click', () => {
+    action.addEventListener('click', async () => {
       $('#other80C').value = String(investment);
-      refreshPayroll({ live: true });
-      toast(`Applied ${formatRupees(investment)} annual 80C investment amount.`);
+      const ok = await refreshPayroll({ live: true });
+      if (ok) toast(`Applied ${formatRupees(investment)} annual 80C investment amount.`);
       $('#calculator').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     actionCell.append(action);
@@ -238,7 +239,8 @@ function renderEmptyState() {
   $('#scenarioRows').append(row);
 }
 
-function refreshPayroll({ live = false } = {}) {
+async function refreshPayroll({ live = false } = {}) {
+  const sequence = ++requestSequence;
   const employee = getEmployee();
   const errorElement = $('#formError');
   const error = validateEmployee(employee);
@@ -252,17 +254,56 @@ function refreshPayroll({ live = false } = {}) {
   }
 
   try {
-    currentPayroll = calculatePayroll(employee);
+    const payload = new URLSearchParams({
+      id: employee.id,
+      name: employee.name,
+      department: employee.department,
+      salaryMonth: employee.salaryMonth,
+      basic: String(employee.basic),
+      cityType: employee.metro ? 'metro' : 'nonmetro',
+      monthlyRent: String(employee.monthlyRent),
+      other80C: String(employee.other80C),
+      rebateEligibility: $('#rebateEligibility').value,
+      professionalTaxMode: employee.professionalTaxMode,
+      pfContributionMode: employee.pfContributionMode,
+      manualPt: String(employee.manualPt)
+    });
+    const response = await fetch('/api/payroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: payload.toString()
+    });
+    if (sequence !== requestSequence) return false;
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error('The Java server returned an unreadable response. Please try again.');
+    }
+    if (!response.ok) {
+      errorElement.textContent = data.error || 'The Java payroll server rejected these inputs.';
+      errorElement.hidden = false;
+      renderEmptyState();
+      return false;
+    }
+
+    currentPayroll = data;
     hasCalculated = true;
     errorElement.hidden = true;
     renderBreakdown(currentPayroll);
     renderTaxComparison(currentPayroll);
-    renderScenarios(employee);
+    renderScenarios(employee, currentPayroll.scenarios);
     renderSlip(currentPayroll);
     setSlipActionsEnabled(true);
     return true;
   } catch (error) {
-    errorElement.textContent = error instanceof Error ? error.message : 'Unable to calculate payroll.';
+    if (sequence !== requestSequence) return false;
+    const message = error instanceof Error ? error.message : 'Unable to calculate payroll.';
+    // Only show startup advice for connection failures; never append it to validation errors.
+    const isConnectionFailure = error instanceof TypeError;
+    errorElement.textContent = isConnectionFailure
+      ? 'Cannot connect to the Java payroll server. Start Paywise with run.bat (Windows) or ./run.sh (macOS/Linux), then open http://localhost:8080.'
+      : message;
     errorElement.hidden = false;
     renderEmptyState();
     return false;
@@ -304,7 +345,7 @@ function salarySlipText(payroll) {
 }
 
 function downloadSlip() {
-  if (!currentPayroll && !refreshPayroll()) return;
+  if (!currentPayroll) { toast('Calculate payroll before exporting a salary slip.'); return; }
   const text = salarySlipText(currentPayroll);
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -326,12 +367,14 @@ $('#professionalTaxMode').addEventListener('change', () => {
   if (hasCalculated) refreshPayroll({ live: true });
 });
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (refreshPayroll()) toast('Payroll calculated successfully.');
+  if (await refreshPayroll()) toast('Payroll calculated by the Java engine.');
 });
 form.addEventListener('input', () => {
-  if (hasCalculated) refreshPayroll({ live: true });
+  if (!hasCalculated) return;
+  clearTimeout(inputDebounce);
+  inputDebounce = setTimeout(() => refreshPayroll({ live: true }), 280);
 });
 form.addEventListener('change', () => {
   if (hasCalculated) refreshPayroll({ live: true });
@@ -376,3 +419,19 @@ if ('IntersectionObserver' in window) {
 const now = new Date();
 $('#salaryMonth').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 renderEmptyState();
+
+// Confirm that the real Java backend is reachable; no salary arithmetic is done in this file.
+fetch('/api/health').then((response) => {
+  if (!response.ok) throw new Error('Java backend unavailable');
+  return response.json();
+}).then((health) => {
+  const badge = document.querySelector('.workspace-pill');
+  if (badge) badge.innerHTML = '<span></span> JAVA ENGINE ONLINE';
+  document.title = 'Paywise — Java Payroll Calculator';
+}).catch(() => {
+  const badge = document.querySelector('.workspace-pill');
+  if (badge) badge.innerHTML = '<span></span> START JAVA SERVER';
+  const error = $('#formError');
+  error.textContent = 'Java server is not connected. Start the app with run.bat (Windows) or ./run.sh (macOS/Linux), then open http://localhost:8080.';
+  error.hidden = false;
+});

@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f8fc">
-  <meta name="description" content="Calculate salary components, deductions, estimated income tax, net pay, annual projections, and printable salary slips.">
-  <title>Paywise — Smart Payroll Calculator</title>
+  <meta name="description" content="Java-powered payroll calculator with a browser frontend, tax estimates, annual projections, and printable salary slips.">
+  <title>Paywise — Java Smart Payroll Calculator</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%234f46e5'/%3E%3Cpath d='M27 23h28a19 19 0 0 1 0 38H43v16H27zm16 14v10h12a5 5 0 0 0 0-10z' fill='white'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="src/app.js"></script>
@@ -34,7 +34,7 @@
       </div>
       <div class="profile-mini">
         <div class="avatar">PW</div>
-        <div><strong>Payroll workspace</strong><small>Local calculator</small></div>
+        <div><strong>Payroll workspace</strong><small>Java payroll server</small></div>
         <span class="online-dot" aria-label="Online"></span>
       </div>
     </aside>
@@ -44,7 +44,7 @@
         <div class="mobile-brand"><span class="brand-mark">P</span><strong>paywise</strong></div>
         <div class="breadcrumb">Workspace <span>/</span> <strong>Payroll overview</strong></div>
         <div class="topbar-actions">
-          <span class="workspace-pill"><span></span> LOCAL CALCULATOR</span>
+          <span class="workspace-pill"><span></span> JAVA ENGINE</span>
           <button class="button button-primary button-small" id="downloadSlipTop" type="button" disabled><span aria-hidden="true">↓</span> Export slip</button>
         </div>
       </header>
@@ -99,6 +99,7 @@
               <label class="field"><span>Monthly rent paid <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="monthlyRent" name="monthlyRent" type="number" min="0" max="100000000" step="0.01" value="0" required inputmode="decimal"></div></label>
               <label class="field"><span>Section 87A rebate eligibility</span><select id="rebateEligibility" name="rebateEligibility" required><option value="" selected disabled>Select eligibility</option><option value="eligible">Eligible resident individual</option><option value="ineligible">Not eligible / unsure</option></select><small class="field-hint">Choose only if you know the employee qualifies for the rebate.</small></label>
               <label class="field"><span>Professional tax calculation</span><select id="professionalTaxMode" name="professionalTaxMode" required><option value="" selected disabled>Select method</option><option value="andhra-pradesh">Andhra Pradesh schedule</option><option value="manual">Enter monthly amount</option><option value="none">No professional tax applies</option></select><small class="field-hint">For another state, enter the applicable amount confirmed from its current rules.</small></label>
+              <label class="field field-full"><span>Employee PF contribution basis</span><select id="pfContributionMode" name="pfContributionMode" required><option value="full-basic-da" selected>12% of full Basic + DA</option><option value="wage-ceiling">12% up to ₹15,000 monthly PF wage ceiling</option></select><small class="field-hint">A simplified scenario selector. Actual EPF applicability and wage definition depend on employee and employer rules.</small></label>
               <label class="field field-full hidden" id="manualPtField"><span>Monthly professional tax <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="manualPt" name="manualPt" type="number" min="0" max="100000" step="0.01" value="0" inputmode="decimal"></div><small class="field-hint">Enter the applicable amount confirmed for the employee's state and pay period.</small></label>
               <label class="field field-full"><span>Other 80C investments / year <em>₹</em></span><div class="input-with-prefix"><span>₹</span><input id="other80C" name="other80C" type="number" min="0" max="100000000" step="0.01" value="0" required inputmode="decimal"></div><small class="field-hint">Used only for the old-regime estimate. PF and other modeled 80C amounts share a ₹1,50,000 cap.</small></label>
             </div>
@@ -168,7 +169,7 @@
             <tbody id="scenarioRows"><tr><td colspan="5">Calculate payroll to explore investment scenarios.</td></tr></tbody>
           </table>
         </div>
-        <p class="table-note">The values below replace the “Other 80C investments / year” input for each scenario. PF contribution is considered separately and is included in the modeled 80C cap.</p>
+        <p class="table-note">The values below replace the “Other 80C investments / year” input for each scenario. The selected PF basis determines the modeled PF amount, which is included in the ₹1,50,000 modeled 80C cap.</p>
       </section>
 
       <section class="panel payslip-panel" id="salary-slip">
